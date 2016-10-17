@@ -3,4 +3,6 @@ build
 dist
 mydatabase
 .tox
-django_statsd_mozilla.egg-info
+
+# Egg artifacts
+/*.egg-info
