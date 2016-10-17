@@ -50,7 +50,8 @@ def register_celery_events():
     try:
         from celery import signals
     except ImportError:
-        pass
+        raise ImportError('Cannot import celery.signals. This dependency is required when STATSD_CELERY_SIGNALS'
+                          ' is True.')
     else:
         signals.task_sent.connect(on_task_sent)
         signals.task_prerun.connect(on_task_prerun)
