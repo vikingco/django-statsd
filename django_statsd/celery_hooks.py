@@ -6,45 +6,53 @@ import time
 _task_start_times = {}
 
 
-def on_task_sent(sender=None, task_id=None, task=None, **kwds):
+def on_before_task_publish(sender=None, **kwds):
     """
-    Handle Celery ``task_sent`` signals.
+    Handle Celery ``before_task_publish`` signals.
     """
     # Increase statsd counter.
-    statsd.incr('celery.%s.sent' % task)
+    statsd.incr('celery.%s.before_task_publish' % sender.replace('.', '_'))
 
 
-def on_task_prerun(sender=None, task_id=None, task=None, **kwds):
+def on_after_task_publish(sender=None, **kwds):
+    """
+    Handle Celery ``after_task_publish`` signals.
+    """
+    # Increase statsd counter.
+    statsd.incr('celery.%s.after_task_publish' % sender.replace('.', '_'))
+
+
+def on_task_prerun(sender=None, task_id=None, **kwds):
     """
     Handle Celery ``task_prerun``signals.
     """
     # Increase statsd counter.
-    statsd.incr('celery.%s.start' % task.name)
+    statsd.incr('celery.%s.start' % sender.name.replace('.', '_'))
 
     # Keep track of start times. (For logging the duration in the postrun.)
     _task_start_times[task_id] = time.time()
 
 
-def on_task_postrun(sender=None, task_id=None, task=None, **kwds):
+def on_task_postrun(sender=None, task_id=None, **kwds):
     """
     Handle Celery ``task_postrun`` signals.
     """
     # Increase statsd counter.
-    statsd.incr('celery.%s.done' % task.name)
+    statsd.incr('celery.%s.done' % sender.name.replace('.', '_'))
 
     # Log duration.
     start_time = _task_start_times.pop(task_id, False)
     if start_time:
         ms = int((time.time() - start_time) * 1000)
-        statsd.timing('celery.%s.runtime' % task.name, ms)
+        statsd.timing('celery.%s.runtime' % sender.name.replace('.', '_'), ms)
 
 
-def on_task_success(sender=None, task_id=None, task=None, **kwds):
+def on_task_success(sender=None, **kwds):
     """
     Handle Celery ``task_success`` signals.
     """
     # Increase statsd counter.
-    statsd.incr('celery.%s.success' % task)
+    statsd.incr('celery.%s.success' % sender.name.replace('.', '_'))
 
 
 def on_task_failure(sender=None, task_id=None, task=None, **kwds):
@@ -52,39 +60,39 @@ def on_task_failure(sender=None, task_id=None, task=None, **kwds):
     Handle Celery ``task_failure`` signals.
     """
     # Increase statsd counter.
-    statsd.incr('celery.%s.failure' % task)
+    statsd.incr('celery.%s.failure' % sender.name.replace('.', '_'))
 
 
-def on_task_retry(sender=None, task_id=None, task=None, **kwds):
+def on_task_retry(sender=None, **kwds):
     """
     Handle Celery ``task_retry`` signals.
     """
     # Increase statsd counter.
-    statsd.incr('celery.%s.retry' % task)
+    statsd.incr('celery.%s.retry' % sender.name.replace('.', '_'))
 
 
-def on_task_revoked(sender=None, task_id=None, task=None, **kwds):
+def on_task_revoked(sender=None, **kwds):
     """
     Handle Celery ``task_revoked`` signals.
     """
     # Increase statsd counter.
-    statsd.incr('celery.%s.revoked' % task)
+    statsd.incr('celery.%s.revoked' % sender.name.replace('.', '_'))
 
 
-def on_task_unknown(sender=None, task_id=None, task=None, **kwds):
+def on_task_unknown(sender=None, name=None, **kwds):
     """
     Handle Celery ``task_unknown`` signals.
     """
     # Increase statsd counter.
-    statsd.incr('celery.%s.unknown' % task)
+    statsd.incr('celery.%s.unknown' % name.replace('.', '_'))
 
 
-def on_task_rejected(sender=None, task_id=None, task=None, **kwds):
+def on_task_rejected(sender=None, **kwds):
     """
     Handle Celery ``task_rejected`` signals.
     """
     # Increase statsd counter.
-    statsd.incr('celery.%s.rejected' % task)
+    statsd.incr('celery.rejected')
 
 
 def register_celery_events():
@@ -94,7 +102,8 @@ def register_celery_events():
         raise ImportError('Cannot import celery.signals. This dependency is required when STATSD_CELERY_SIGNALS'
                           ' is True.')
     else:
-        signals.after_task_publish.connect(on_task_sent)
+        signals.before_task_publish.connect(on_before_task_publish)
+        signals.after_task_publish.connect(on_after_task_publish)
         signals.task_prerun.connect(on_task_prerun)
         signals.task_postrun.connect(on_task_postrun)
         signals.task_success.connect(on_task_success)
