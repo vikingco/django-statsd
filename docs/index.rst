@@ -246,8 +246,7 @@ Add to your Django settings::
 Celery signals integration
 --------------------------
 
-You can log all the ``task_sent``, ``task_prerun``, ``task_postrun`` and
-``task_failure`` signals of celery along with the duration of succesful tasks.
+You can log all the signals of celery along with the duration of succesful tasks.
 
 To enable this, add the following to your Django settings::
 
