@@ -4,7 +4,7 @@ from setuptools import setup
 # Became django-statsd-unleashed because django-statsd and django-statsd-mozilla are taken on Pypi. ;)
 setup(
     name='django-statsd-unleashed',
-    version='0.4.2',
+    version='0.4.3',
     url='https://github.com/vikingco/django-statsd',
     license='BSD',
     description='Django interface with statsd',
@@ -33,5 +33,8 @@ setup(
         'Operating System :: OS Independent',
         'Environment :: Web Environment',
         'Framework :: Django',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
     ],
 )
