@@ -10,22 +10,21 @@ from django_statsd.clients import statsd
 try:
     from django.utils.deprecation import MiddlewareMixin
 except ImportError:
-    class MiddlewareMixin(object):
-        pass
+    MiddlewareMixin = object
 
 
 class GraphiteMiddleware(MiddlewareMixin):
 
     def process_response(self, request, response):
         statsd.incr('response.%s' % response.status_code)
-        if hasattr(request, 'user') and request.user.is_authenticated():
+        if hasattr(request, 'user') and request.user and request.user.is_authenticated():
             statsd.incr('response.auth.%s' % response.status_code)
         return response
 
     def process_exception(self, request, exception):
         if not isinstance(exception, Http404):
             statsd.incr('response.500')
-            if hasattr(request, 'user') and request.user.is_authenticated():
+            if hasattr(request, 'user') and request.user and request.user.is_authenticated():
                 statsd.incr('response.auth.500')
 
 

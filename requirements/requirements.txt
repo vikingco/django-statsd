@@ -1,0 +1,5 @@
+# Django
+django>=1.8,<1.12
+
+# StatsD
+statsd==3.2.1

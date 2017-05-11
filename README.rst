@@ -1,8 +1,10 @@
-============================
-Django Statsd |Build Status|
-============================
+=============
+Django Statsd
+=============
 
-Documentation is on `Read the Docs <https://django-statsd.readthedocs.org/>`_.
+This is a friendly fork with support for Django>1.8,<1.12.
+
+The original documentation is on `Read the Docs <https://django-statsd.readthedocs.org/>`_.
 
 -------
 License

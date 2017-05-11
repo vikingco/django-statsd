@@ -152,6 +152,7 @@ def record(request):
         return http.HttpResponseBadRequest()
 
     client = data.get('client')
+
     if client not in clients:
         return http.HttpResponseBadRequest()
 

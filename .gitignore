@@ -1,8 +1,11 @@
 *.py[co]
+__pycache__
 build
 dist
 mydatabase
 .tox
 
 # Egg artifacts
-/*.egg-info
+/*.egg*
+/venv*
+/.cache
