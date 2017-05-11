@@ -100,7 +100,7 @@ Installation
 
 From pypi::
 
-        pip install django-statsd-mozilla
+        pip install django-statsd-unleashed
 
 Because there is already a django-statsd on pypi.
 
@@ -109,7 +109,7 @@ Requirement, https://github.com/jsocol/pystatsd or::
         pip install statsd
 
 Because there is already a pystatsd on pypi. This will be automatically added
-when you install django-statsd-mozilla.
+when you install django-statsd-unleashed.
 
 First off, pick your client, one of:
 
@@ -130,13 +130,6 @@ First off, pick your client, one of:
 - django_statsd.clients.log
 
   Just writes the values to a log file using Python's logging module.
-
-- django_statsd.clients.moz_metlog
-
-  Use this to route messages through
-  _metlog: http://github.com/mozilla-services/metlog-py.  Note that
-  using metlog will require you to bind the metlog instance to bind
-  the metlog client instance as settings.METLOG.
 
 - django_statsd.clients.nose
 

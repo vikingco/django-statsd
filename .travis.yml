@@ -1,24 +1,13 @@
 language: python
 env:
- - DJANGO=1.6
- - DJANGO=1.7
- - DJANGO=1.8
- - DJANGO=1.9
- - DJANGO=1.10
+ - DJANGO='>=1.8,<1.9'
+ - DJANGO='>=1.9,<1.10'
+ - DJANGO='>=1.10,<1.11'
+ - DJANGO='>=1.11,<1.12'
 python:
- - "2.6"
  - "2.7"
- - "3.4"
- - "pypy"
- - "pypy3"
+ - "3.6"
 install:
- - if [[ $TRAVIS_PYTHON_VERSION == '2.6' ]]; then pip install unittest2; fi
- - pip install -r requirements.txt --use-mirrors
-
- # metlog-py doesn't support Python 3
- - if [[ $TRAVIS_PYTHON_VERSION == 2* ]]; then pip install -r optional.txt --use-mirrors; fi
-
+ - pip install -e .
  - pip install "Django<${DJANGO}" --use-mirrors
-script: DJANGO_SETTINGS_MODULE='django_statsd.test_settings' nosetests
-notifications:
-  irc: "irc.mozilla.org#amo-bots"
+script: DJANGO_SETTINGS_MODULE='django_statsd.test_settings' python setup.py test

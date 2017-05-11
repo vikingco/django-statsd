@@ -6,19 +6,16 @@ import unittest
 from django.conf import settings
 from nose.exc import SkipTest
 from nose import tools as nose_tools
-try:
-    # Python 2.7, Python 3.x
-    from unittest import skipUnless
-except ImportError:
-    # Python 2.6
-    from unittest2 import skipUnless
 
-from django import VERSION
-from django.core.urlresolvers import reverse
+try:
+    from django.urls import reverse
+except ImportError:
+    from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseForbidden
 from django.test import TestCase
 from django.test.client import RequestFactory
-from django.utils import dictconfig
+from logutils import dictconfig
+import unittest
 
 import mock
 from nose.tools import eq_
@@ -163,143 +160,9 @@ class TestClient(unittest.TestCase):
         eq_(client.cache, {'testing|count': [[1, 1]]})
 
 
-class TestMetlogClient(TestCase):
-
-    def check_metlog(self):
-        try:
-            from metlog.config import client_from_dict_config
-            return client_from_dict_config
-        except ImportError:
-            raise SkipTest("Metlog is not installed")
-
-    @nose_tools.raises(AttributeError)
-    def test_no_metlog(self):
-        with self.settings(STATSD_PREFIX='moz_metlog',
-                           STATSD_CLIENT='django_statsd.clients.moz_metlog'):
-            get_client()
-
-    def _create_client(self):
-        client_from_dict_config = self.check_metlog()
-
-        # Need to load within the test in case metlog is not installed
-        from metlog.config import client_from_dict_config
-
-        METLOG_CONF = {
-            'logger': 'django-statsd',
-            'sender': {
-                'class': 'metlog.senders.DebugCaptureSender',
-            },
-        }
-
-        return client_from_dict_config(METLOG_CONF)
-
-    def test_get_client(self):
-        metlog = self._create_client()
-        with self.settings(METLOG=metlog,
-                           STATSD_PREFIX='moz_metlog',
-                           STATSD_CLIENT='django_statsd.clients.moz_metlog'):
-            client = get_client()
-            eq_(client.__module__, 'django_statsd.clients.moz_metlog')
-
-    def test_metlog_incr(self):
-        metlog = self._create_client()
-        with self.settings(METLOG=metlog,
-                           STATSD_PREFIX='moz_metlog',
-                           STATSD_CLIENT='django_statsd.clients.moz_metlog'):
-            client = get_client()
-            eq_(len(client.metlog.sender.msgs), 0)
-            client.incr('testing')
-            eq_(len(client.metlog.sender.msgs), 1)
-
-            msg = json.loads(client.metlog.sender.msgs[0])
-            eq_(msg['severity'], 6)
-            eq_(msg['payload'], '1')
-            eq_(msg['fields']['rate'], 1)
-            eq_(msg['fields']['name'], 'moz_metlog.testing')
-            eq_(msg['type'], 'counter')
-
-    def test_metlog_decr(self):
-        metlog = self._create_client()
-        with self.settings(METLOG=metlog,
-                           STATSD_PREFIX='moz_metlog',
-                           STATSD_CLIENT='django_statsd.clients.moz_metlog'):
-            client = get_client()
-            eq_(len(client.metlog.sender.msgs), 0)
-            client.decr('testing')
-            eq_(len(client.metlog.sender.msgs), 1)
-
-            msg = json.loads(client.metlog.sender.msgs[0])
-            eq_(msg['severity'], 6)
-            eq_(msg['payload'], '-1')
-            eq_(msg['fields']['rate'], 1)
-            eq_(msg['fields']['name'], 'moz_metlog.testing')
-            eq_(msg['type'], 'counter')
-
-    def test_metlog_timing(self):
-        metlog = self._create_client()
-        with self.settings(METLOG=metlog,
-                           STATSD_PREFIX='moz_metlog',
-                           STATSD_CLIENT='django_statsd.clients.moz_metlog'):
-            client = get_client()
-            eq_(len(client.metlog.sender.msgs), 0)
-            client.timing('testing', 512, rate=2)
-            eq_(len(client.metlog.sender.msgs), 1)
-
-            msg = json.loads(client.metlog.sender.msgs[0])
-            eq_(msg['severity'], 6)
-            eq_(msg['payload'], '512')
-            eq_(msg['fields']['rate'], 2)
-            eq_(msg['fields']['name'], 'moz_metlog.testing')
-            eq_(msg['type'], 'timer')
-
-    @nose_tools.raises(AttributeError)
-    def test_metlog_no_prefixes(self):
-        metlog = self._create_client()
-
-        with self.settings(METLOG=metlog,
-                           STATSD_CLIENT='django_statsd.clients.moz_metlog'):
-            client = get_client()
-            client.incr('foo', 2)
-
-    def test_metlog_prefixes(self):
-        metlog = self._create_client()
-
-        with self.settings(METLOG=metlog,
-                           STATSD_PREFIX='some_prefix',
-                           STATSD_CLIENT='django_statsd.clients.moz_metlog'):
-            client = get_client()
-            eq_(len(client.metlog.sender.msgs), 0)
-
-            client.timing('testing', 512, rate=2)
-            client.incr('foo', 2)
-            client.decr('bar', 5)
-
-            eq_(len(client.metlog.sender.msgs), 3)
-
-            msg = json.loads(client.metlog.sender.msgs[0])
-            eq_(msg['severity'], 6)
-            eq_(msg['payload'], '512')
-            eq_(msg['fields']['rate'], 2)
-            eq_(msg['fields']['name'], 'some_prefix.testing')
-            eq_(msg['type'], 'timer')
-
-            msg = json.loads(client.metlog.sender.msgs[1])
-            eq_(msg['severity'], 6)
-            eq_(msg['payload'], '2')
-            eq_(msg['fields']['rate'], 1)
-            eq_(msg['fields']['name'], 'some_prefix.foo')
-            eq_(msg['type'], 'counter')
-
-            msg = json.loads(client.metlog.sender.msgs[2])
-            eq_(msg['severity'], 6)
-            eq_(msg['payload'], '-5')
-            eq_(msg['fields']['rate'], 1)
-            eq_(msg['fields']['name'], 'some_prefix.bar')
-            eq_(msg['type'], 'counter')
-
-
 # This is primarily for Zamboni, which loads in the custom middleware
 # classes, one of which, breaks posts to our url. Let's stop that.
+@mock.patch.object(settings, 'MIDDLEWARE', [])
 @mock.patch.object(settings, 'MIDDLEWARE_CLASSES', [])
 class TestRecord(TestCase):
 
@@ -307,7 +170,7 @@ class TestRecord(TestCase):
 
     def setUp(self):
         super(TestRecord, self).setUp()
-        self.url = reverse('django_statsd.record')
+        self.url = reverse('django_statsd_record')
         settings.STATSD_RECORD_GUARD = None
         self.good = {'client': 'boomerang', 'nt_nav_st': 1,
                      'nt_domcomp': 3}
@@ -524,65 +387,3 @@ class TestCursorWrapperPatching(TestCase):
 
                 self.assertEqual(timer.call_count, 1)
                 self.assertEqual(timer.call_args[0][0], 'db.client_executable_name.alias.executemany.%s' % operation)
-
-    @mock.patch(
-        'django_statsd.patches.db.pre_django_1_6_cursorwrapper_getattr')
-    @mock.patch('django_statsd.patches.db.patched_executemany')
-    @mock.patch('django_statsd.patches.db.patched_execute')
-    @mock.patch('django.db.backends.util.CursorDebugWrapper')
-    @skipUnless(VERSION < (1, 6, 0), "CursorWrapper Patching for Django<1.6")
-    def test_cursorwrapper_patching(self,
-                                    CursorDebugWrapper,
-                                    execute,
-                                    executemany,
-                                    _getattr):
-        try:
-            from django.db.backends import utils as util
-        except ImportError:
-            from django.db.backends import util
-        try:
-            # We need to patch CursorWrapper like this because setting
-            # __getattr__ on Mock instances raises AttributeError.
-            class CursorWrapper(object):
-                pass
-
-            _CursorWrapper = util.CursorWrapper
-            util.CursorWrapper = CursorWrapper
-
-            from django_statsd.patches.db import patch
-            execute.__name__ = 'execute'
-            executemany.__name__ = 'executemany'
-            _getattr.__name__ = '_getattr'
-            execute.return_value = 'execute'
-            executemany.return_value = 'executemany'
-            _getattr.return_value = 'getattr'
-            patch()
-
-            self.assertEqual(CursorDebugWrapper.execute(), 'execute')
-            self.assertEqual(CursorDebugWrapper.executemany(), 'executemany')
-            self.assertEqual(CursorWrapper.__getattr__(), 'getattr')
-        finally:
-            util.CursorWrapper = _CursorWrapper
-
-    @mock.patch('django_statsd.patches.db.patched_callproc')
-    @mock.patch('django_statsd.patches.db.patched_executemany')
-    @mock.patch('django_statsd.patches.db.patched_execute')
-    @mock.patch('django.db.backends.util.CursorWrapper')
-    @skipUnless(VERSION >= (1, 6, 0), "CursorWrapper Patching for Django>=1.6")
-    def test_cursorwrapper_patching16(self,
-                                      CursorWrapper,
-                                      execute,
-                                      executemany,
-                                      callproc):
-        from django_statsd.patches.db import patch
-        execute.__name__ = 'execute'
-        executemany.__name__ = 'executemany'
-        callproc.__name__ = 'callproc'
-        execute.return_value = 'execute'
-        executemany.return_value = 'executemany'
-        callproc.return_value = 'callproc'
-        patch()
-
-        self.assertEqual(CursorWrapper.execute(), 'execute')
-        self.assertEqual(CursorWrapper.executemany(), 'executemany')
-        self.assertEqual(CursorWrapper.callproc(), 'callproc')

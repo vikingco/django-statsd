@@ -1,10 +1,34 @@
-from setuptools import setup
+from setuptools import setup, find_packages
+from pip.req import parse_requirements
+from pip.download import PipSession
+
+from os import path
+
+
+# Lists of requirements and dependency links which are needed during runtime, testing and setup
+install_requires = []
+tests_require = []
+dependency_links = []
+
+# Inject requirements from requirements.txt into setup.py
+requirements_file = parse_requirements(path.join('requirements', 'requirements.txt'), session=PipSession())
+for req in requirements_file:
+    install_requires.append(str(req.req))
+    if req.link:
+        dependency_links.append(str(req.link))
+
+# Inject test requirements from requirements_test.txt into setup.py
+requirements_test_file = parse_requirements(path.join('requirements', 'requirements_test.txt'), session=PipSession())
+for req in requirements_test_file:
+    tests_require.append(str(req.req))
+    if req.link:
+        dependency_links.append(str(req.link))
 
 
 # Became django-statsd-unleashed because django-statsd and django-statsd-mozilla are taken on Pypi. ;)
 setup(
     name='django-statsd-unleashed',
-    version='0.4.3',
+    version='1.0.0',
     url='https://github.com/vikingco/django-statsd',
     license='BSD',
     description='Django interface with statsd',
@@ -13,19 +37,17 @@ setup(
     author_email='andym@mozilla.com',
     maintainer='Unleashed NV',
     maintainer_email='operations@unleashed.be',
-    install_requires=['statsd >= 2.1.2, != 3.2 , <= 4.0'],
-    packages=['django_statsd',
-              'django_statsd/patches',
-              'django_statsd/clients',
-              'django_statsd/loggers',
-              'django_statsd/management',
-              'django_statsd/management/commands'],
+    packages=find_packages('.'),
     entry_points={
         'nose.plugins.0.10': [
             'django_statsd = django_statsd:NoseStatsd'
         ]
     },
     include_package_data=True,
+    install_requires=install_requires,
+    tests_require=tests_require,
+    dependency_links=dependency_links,
+    test_suite = 'nose.collector',
     zip_safe=False,
     classifiers=[
         'Intended Audience :: Developers',
