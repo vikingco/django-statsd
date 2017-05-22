@@ -1,7 +1,7 @@
-import django
+from __future__ import absolute_import
 from django.db.backends import utils
 
-from django_statsd.patches.utils import wrap, patch_method
+from django_statsd.patches.utils import patch_method
 from django_statsd.clients import statsd
 
 

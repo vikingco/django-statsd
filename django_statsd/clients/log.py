@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import logging
 
 from django_statsd.clients.null import StatsClient

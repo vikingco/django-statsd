@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from django.conf import settings
 from django.db.models.signals import post_save, post_delete
 from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
@@ -36,6 +37,7 @@ def model_delete(sender, **kwargs):
         instance._meta.object_name,
     ))
 
+
 if getattr(settings, 'STATSD_MODEL_SIGNALS', False):
     post_save.connect(model_save)
     post_delete.connect(model_delete)
@@ -52,6 +54,7 @@ def logged_out(sender, request, user, **kwargs):
 
 def login_failed(sender, credentials, **kwargs):
     statsd.incr('auth.login.failed')
+
 
 if getattr(settings, 'STATSD_AUTH_SIGNALS', False):
     user_logged_in.connect(logged_in)

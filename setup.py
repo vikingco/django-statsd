@@ -38,25 +38,19 @@ setup(
     maintainer='Unleashed NV',
     maintainer_email='operations@unleashed.be',
     packages=find_packages('.'),
-    entry_points={
-        'nose.plugins.0.10': [
-            'django_statsd = django_statsd:NoseStatsd'
-        ]
-    },
     include_package_data=True,
     install_requires=install_requires,
     tests_require=tests_require,
     dependency_links=dependency_links,
-    test_suite = 'nose.collector',
     zip_safe=False,
     classifiers=[
         'Intended Audience :: Developers',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
         'Operating System :: OS Independent',
         'Environment :: Web Environment',
         'Framework :: Django',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
     ],
 )

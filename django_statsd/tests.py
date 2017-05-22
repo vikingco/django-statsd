@@ -1,11 +1,10 @@
-import json
+from __future__ import absolute_import
 import logging
 import sys
 import unittest
 
 from django.conf import settings
-from nose.exc import SkipTest
-from nose import tools as nose_tools
+from six.moves import zip
 
 try:
     from django.urls import reverse
@@ -15,10 +14,8 @@ from django.http import HttpResponse, HttpResponseForbidden
 from django.test import TestCase
 from django.test.client import RequestFactory
 from logutils import dictconfig
-import unittest
 
 import mock
-from nose.tools import eq_
 from django_statsd.clients import get_client, statsd
 from django_statsd.patches import utils
 from django_statsd.patches.db import (
@@ -61,7 +58,7 @@ class TestIncr(TestCase):
         self.req.user.is_authenticated.return_value = True
         gmw = middleware.GraphiteMiddleware()
         gmw.process_response(self.req, self.res)
-        eq_(incr.call_count, 2)
+        self.assertEqual(incr.call_count, 2)
 
     def test_graphite_exception(self, incr):
         gmw = middleware.GraphiteMiddleware()
@@ -73,7 +70,7 @@ class TestIncr(TestCase):
         self.req.user.is_authenticated.return_value = True
         gmw = middleware.GraphiteMiddleware()
         gmw.process_exception(self.req, None)
-        eq_(incr.call_count, 2)
+        self.assertEqual(incr.call_count, 2)
 
 
 @mock.patch.object(middleware.statsd, 'timing')
@@ -84,80 +81,80 @@ class TestTiming(unittest.TestCase):
         self.res = HttpResponse()
 
     def test_request_timing(self, timing):
-        func = lambda x: x
+        func = lambda x: x  # noqa: E731
         gmw = middleware.GraphiteRequestTimingMiddleware()
         gmw.process_view(self.req, func, tuple(), dict())
         gmw.process_response(self.req, self.res)
-        eq_(timing.call_count, 3)
+        self.assertEqual(timing.call_count, 3)
         names = ['view.%s.%s.GET' % (func.__module__, func.__name__),
                  'view.%s.GET' % func.__module__,
                  'view.GET']
         for expected, (args, kwargs) in zip(names, timing.call_args_list):
-            eq_(expected, args[0])
+            self.assertEqual(expected, args[0])
 
     def test_request_timing_exception(self, timing):
-        func = lambda x: x
+        func = lambda x: x  # noqa: E731
         gmw = middleware.GraphiteRequestTimingMiddleware()
         gmw.process_view(self.req, func, tuple(), dict())
         gmw.process_exception(self.req, self.res)
-        eq_(timing.call_count, 3)
+        self.assertEqual(timing.call_count, 3)
         names = ['view.%s.%s.GET' % (func.__module__, func.__name__),
                  'view.%s.GET' % func.__module__,
                  'view.GET']
         for expected, (args, kwargs) in zip(names, timing.call_args_list):
-            eq_(expected, args[0])
+            self.assertEqual(expected, args[0])
 
     def test_request_timing_tastypie(self, timing):
-        func = lambda x: x
+        func = lambda x: x  # noqa: E731
         gmw = middleware.TastyPieRequestTimingMiddleware()
         gmw.process_view(self.req, func, tuple(), {
             'api_name': 'my_api_name',
             'resource_name': 'my_resource_name'
         })
         gmw.process_response(self.req, self.res)
-        eq_(timing.call_count, 3)
+        self.assertEqual(timing.call_count, 3)
         names = ['view.my_api_name.my_resource_name.GET',
                  'view.my_api_name.GET',
                  'view.GET']
         for expected, (args, kwargs) in zip(names, timing.call_args_list):
-            eq_(expected, args[0])
+            self.assertEqual(expected, args[0])
 
     def test_request_timing_tastypie_fallback(self, timing):
-        func = lambda x: x
+        func = lambda x: x  # noqa: E731
         gmw = middleware.TastyPieRequestTimingMiddleware()
         gmw.process_view(self.req, func, tuple(), dict())
         gmw.process_response(self.req, self.res)
-        eq_(timing.call_count, 3)
+        self.assertEqual(timing.call_count, 3)
         names = ['view.%s.%s.GET' % (func.__module__, func.__name__),
                  'view.%s.GET' % func.__module__,
                  'view.GET']
         for expected, (args, kwargs) in zip(names, timing.call_args_list):
-            eq_(expected, args[0])
+            self.assertEqual(expected, args[0])
 
 
 class TestClient(unittest.TestCase):
 
     @mock.patch.object(settings, 'STATSD_CLIENT', 'statsd.client')
     def test_normal(self):
-        eq_(get_client().__module__, 'statsd.client')
+        self.assertEqual(get_client().__module__, 'statsd.client')
 
     @mock.patch.object(settings, 'STATSD_CLIENT',
                        'django_statsd.clients.null')
     def test_null(self):
-        eq_(get_client().__module__, 'django_statsd.clients.null')
+        self.assertEqual(get_client().__module__, 'django_statsd.clients.null')
 
     @mock.patch.object(settings, 'STATSD_CLIENT',
                        'django_statsd.clients.toolbar')
     def test_toolbar(self):
-        eq_(get_client().__module__, 'django_statsd.clients.toolbar')
+        self.assertEqual(get_client().__module__, 'django_statsd.clients.toolbar')
 
     @mock.patch.object(settings, 'STATSD_CLIENT',
                        'django_statsd.clients.toolbar')
     def test_toolbar_send(self):
         client = get_client()
-        eq_(client.cache, {})
+        self.assertEqual(client.cache, {})
         client.incr('testing')
-        eq_(client.cache, {'testing|count': [[1, 1]]})
+        self.assertEqual(client.cache, {'testing|count': [[1, 1]]})
 
 
 # This is primarily for Zamboni, which loads in the custom middleware

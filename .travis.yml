@@ -1,13 +1,19 @@
 language: python
 env:
- - DJANGO='>=1.8,<1.9'
- - DJANGO='>=1.9,<1.10'
- - DJANGO='>=1.10,<1.11'
- - DJANGO='>=1.11,<1.12'
+   - DJANGO='>=1.8,<1.9'
+   - DJANGO='>=1.9,<1.10'
+   - DJANGO='>=1.10,<1.11'
+   - DJANGO='>=1.11,<1.12'
 python:
- - "2.7"
- - "3.6"
+   - "2.7"
+   - "3.6"
 install:
- - pip install -e .
- - pip install "Django<${DJANGO}" --use-mirrors
-script: DJANGO_SETTINGS_MODULE='django_statsd.test_settings' python setup.py test
+   - pip install -e .
+   - pip install -r requirements/requirements_test.txt
+   - pip install "Django${DJANGO}"
+before_script:
+    flake8 django_statsd/
+script:
+    pytest -v --capture=sys --cov=django_statsd/ django_statsd/ --cov-report term-missing:skip-covered
+after_success:
+    coveralls

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import collections
 from django import http
 from django.conf import settings
@@ -135,7 +136,6 @@ clients = {
 
 
 @csrf_exempt
-#@require_http_methods(["POST"])
 def record(request):
     """
     This is a Django method you can link to in your URLs that process

@@ -1,0 +1,25 @@
+[run]
+branch = True
+source = django_statsd/
+omit =
+    # Ignore migrations
+    */migrations/*
+
+    # Ignore requirement files
+    requirements/*
+
+    # Ignore manage files
+    manage*
+
+    # Ignore admin files
+    django_statsd/*/admin.py
+
+    # Ignore test_project file
+    test_settings.py
+[report]
+exclude_lines=
+    pragma: no cover
+    def __repr__
+    def __iter__
+    def __str__
+    def __unicode__
