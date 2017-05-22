@@ -2,6 +2,11 @@
 Django Statsd
 =============
 
+.. image:: https://coveralls.io/repos/github/vikingco/django-statsd/badge.svg?branch=master
+    :target: https://coveralls.io/github/vikingco/django-statsd?branch=master
+.. image:: https://travis-ci.org/vikingco/django-statsd.svg?branch=master
+    :target: https://travis-ci.org/vikingco/django-statsd
+
 This is a friendly fork with support for Django>1.8,<1.12.
 
 The original documentation is on `Read the Docs <https://django-statsd.readthedocs.org/>`_.

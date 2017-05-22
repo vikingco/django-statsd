@@ -8,4 +8,6 @@ mydatabase
 # Egg artifacts
 /*.egg*
 /venv*
+/.venv*
 /.cache
+/.coverage

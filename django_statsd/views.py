@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import collections
 from django import http
 from django.conf import settings
