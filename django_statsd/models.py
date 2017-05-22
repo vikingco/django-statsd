@@ -7,7 +7,7 @@ from django_statsd.clients import statsd
 from .celery_hooks import register_celery_events
 
 
-if getattr(settings, 'STATSD_CELERY_SIGNALS', False):
+if getattr(settings, 'STATSD_CELERY_SIGNALS', False):  # pragma: no cover
     register_celery_events()
 
 
@@ -38,7 +38,7 @@ def model_delete(sender, **kwargs):
     ))
 
 
-if getattr(settings, 'STATSD_MODEL_SIGNALS', False):
+if getattr(settings, 'STATSD_MODEL_SIGNALS', False):  # pragma: no cover
     post_save.connect(model_save)
     post_delete.connect(model_delete)
 
@@ -56,7 +56,7 @@ def login_failed(sender, credentials, **kwargs):
     statsd.incr('auth.login.failed')
 
 
-if getattr(settings, 'STATSD_AUTH_SIGNALS', False):
+if getattr(settings, 'STATSD_AUTH_SIGNALS', False):  # pragma: no cover
     user_logged_in.connect(logged_in)
     user_logged_out.connect(logged_out)
     user_login_failed.connect(login_failed)
