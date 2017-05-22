@@ -2,6 +2,9 @@
 branch = True
 source = django_statsd/
 omit =
+    # Ignore the tests themselves
+    django_statsd/tests*.py
+
     # Ignore migrations
     */migrations/*
 
@@ -23,3 +26,4 @@ exclude_lines=
     def __iter__
     def __str__
     def __unicode__
+fail_under = 80
