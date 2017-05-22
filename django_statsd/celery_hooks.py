@@ -1,5 +1,3 @@
-
-
 from __future__ import absolute_import
 from django_statsd.clients import statsd
 import time
@@ -99,7 +97,7 @@ def on_task_rejected(sender=None, **kwds):
 def register_celery_events():
     try:
         from celery import signals
-    except ImportError:
+    except ImportError:  # pragma: no cover
         raise ImportError('Cannot import celery.signals. This dependency is required when STATSD_CELERY_SIGNALS'
                           ' is True.')
     else:

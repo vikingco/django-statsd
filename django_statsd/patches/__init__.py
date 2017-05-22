@@ -1,12 +1,12 @@
 from __future__ import absolute_import
 from django.conf import settings
+from importlib import import_module
 
-try:
-    from importlib import import_module
-except ImportError:
-    from django.utils.importlib import import_module
 
-patches = getattr(settings, 'STATSD_PATCHES', [])
+def import_patches():
+    patches = getattr(settings, 'STATSD_PATCHES', [])
+    for patch in patches:
+        import_module(patch).patch()
 
-for patch in patches:
-    import_module(patch).patch()
+
+import_patches()

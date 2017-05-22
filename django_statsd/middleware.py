@@ -8,7 +8,7 @@ from django.http import Http404
 from django_statsd.clients import statsd
 try:
     from django.utils.deprecation import MiddlewareMixin
-except ImportError:
+except ImportError:  # pragma: no cover
     MiddlewareMixin = object
 
 
@@ -34,12 +34,10 @@ class GraphiteRequestTimingMiddleware(MiddlewareMixin):
         view = view_func
         if not inspect.isfunction(view_func):
             view = view.__class__
-        try:
-            request._view_module = view.__module__
-            request._view_name = view.__name__
-            request._start_time = time.time()
-        except AttributeError:
-            pass
+
+        request._view_module = view.__module__
+        request._view_name = view.__name__
+        request._start_time = time.time()
 
     def process_response(self, request, response):
         self._record_time(request)

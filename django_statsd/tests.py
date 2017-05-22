@@ -1,29 +1,44 @@
 from __future__ import absolute_import
 import logging
 import sys
-import unittest
 
-from django.conf import settings
+from django_fake_model import models as f
+from logutils import dictconfig
+from mock import patch, Mock
+from pytest import raises
 from six.moves import zip
+from testfixtures import log_capture
+from unittest import TestCase
+
+from celery import signals as celery_signals
+from django.conf import settings
+from django.contrib.auth import signals as auth_signals
+from django.core.cache import cache as django_cache
+from django.core.management import call_command
+from django.db import models
+from django.http import HttpResponse, HttpResponseForbidden, Http404
+from django.test import TestCase as DjangoTestCase
+from django.test.client import RequestFactory
 
 try:
     from django.urls import reverse
 except ImportError:
     from django.core.urlresolvers import reverse
-from django.http import HttpResponse, HttpResponseForbidden
-from django.test import TestCase
-from django.test.client import RequestFactory
-from logutils import dictconfig
 
-import mock
+from django_statsd import middleware
 from django_statsd.clients import get_client, statsd
-from django_statsd.patches import utils
+from django_statsd.patches import utils, import_patches
 from django_statsd.patches.db import (
+    patch as db_patch,
     patched_callproc,
     patched_execute,
     patched_executemany,
 )
-from django_statsd import middleware
+from django_statsd.patches.cache import (
+    patch as cache_patch,
+    StatsdTracker,
+)
+from django_statsd.views import process_key, _process_summaries
 
 cfg = {
     'version': 1,
@@ -34,6 +49,10 @@ cfg = {
         },
     },
     'loggers': {
+        'statsd': {
+            'handlers': ['test_statsd_handler'],
+            'level': 'INFO',
+        },
         'test.logging': {
             'handlers': ['test_statsd_handler'],
         },
@@ -41,8 +60,12 @@ cfg = {
 }
 
 
-@mock.patch.object(middleware.statsd, 'incr')
-class TestIncr(TestCase):
+class FakeModel(f.FakeModel):
+        name = models.CharField(max_length=100)
+
+
+@patch.object(middleware.statsd, 'incr')
+class TestIncr(DjangoTestCase):
 
     def setUp(self):
         self.req = RequestFactory().get('/')
@@ -54,7 +77,7 @@ class TestIncr(TestCase):
         assert incr.called
 
     def test_graphite_response_authenticated(self, incr):
-        self.req.user = mock.Mock()
+        self.req.user = Mock()
         self.req.user.is_authenticated.return_value = True
         gmw = middleware.GraphiteMiddleware()
         gmw.process_response(self.req, self.res)
@@ -66,19 +89,36 @@ class TestIncr(TestCase):
         assert incr.called
 
     def test_graphite_exception_authenticated(self, incr):
-        self.req.user = mock.Mock()
+        self.req.user = Mock()
         self.req.user.is_authenticated.return_value = True
         gmw = middleware.GraphiteMiddleware()
         gmw.process_exception(self.req, None)
         self.assertEqual(incr.call_count, 2)
 
+    def test_graphite_exception_404(self, incr):
+        gmw = middleware.GraphiteMiddleware()
+        gmw.process_exception(self.req, Http404())
+        assert not incr.called
 
-@mock.patch.object(middleware.statsd, 'timing')
-class TestTiming(unittest.TestCase):
+    def test_graphite_exception_404_authenticated(self, incr):
+        self.req.user = Mock()
+        self.req.user.is_authenticated.return_value = True
+        gmw = middleware.GraphiteMiddleware()
+        gmw.process_exception(self.req, Http404())
+        self.assertEqual(incr.call_count, 0)
+
+
+@patch.object(middleware.statsd, 'timing')
+class TestTiming(TestCase):
 
     def setUp(self):
         self.req = RequestFactory().get('/')
         self.res = HttpResponse()
+
+    def test_ping_timing(self, timing):
+        call_command('statsd_ping', key='test.timing')
+        self.assertEqual(timing.call_count, 1)
+        self.assertEqual(timing.call_args_list[0][0][0], 'test.timing')
 
     def test_request_timing(self, timing):
         func = lambda x: x  # noqa: E731
@@ -91,6 +131,37 @@ class TestTiming(unittest.TestCase):
                  'view.GET']
         for expected, (args, kwargs) in zip(names, timing.call_args_list):
             self.assertEqual(expected, args[0])
+
+    @patch.object(settings, 'STATSD_VIEW_TIMER_DETAILS', False)
+    def test_request_timing_without_details(self, timing):
+        func = lambda x: x  # noqa: E731
+        gmw = middleware.GraphiteRequestTimingMiddleware()
+        gmw.process_view(self.req, func, tuple(), dict())
+        gmw.process_response(self.req, self.res)
+        self.assertEqual(timing.call_count, 1)
+        names = ['view.%s.%s.GET' % (func.__module__, func.__name__), ]
+        for expected, (args, kwargs) in zip(names, timing.call_args_list):
+            self.assertEqual(expected, args[0])
+
+    def test_request_timing_view_not_a_function(self, timing):
+        func = object
+        gmw = middleware.GraphiteRequestTimingMiddleware()
+        gmw.process_view(self.req, func, tuple(), dict())
+        gmw.process_response(self.req, self.res)
+        self.assertEqual(timing.call_count, 3)
+        names = ['view.%s.%s.GET' % (func.__class__.__module__, func.__class__.__name__),
+                 'view.%s.GET' % func.__class__.__module__,
+                 'view.GET']
+        for expected, (args, kwargs) in zip(names, timing.call_args_list):
+            self.assertEqual(expected, args[0])
+
+    def test_request_timing_view_no_timings(self, timing):
+        func = object
+        gmw = middleware.GraphiteRequestTimingMiddleware()
+        gmw.process_view(self.req, func, tuple(), dict())
+        del self.req._start_time
+        gmw.process_response(self.req, self.res)
+        self.assertEqual(timing.call_count, 0)
 
     def test_request_timing_exception(self, timing):
         func = lambda x: x  # noqa: E731
@@ -132,36 +203,126 @@ class TestTiming(unittest.TestCase):
             self.assertEqual(expected, args[0])
 
 
-class TestClient(unittest.TestCase):
+class TestClient(TestCase):
 
-    @mock.patch.object(settings, 'STATSD_CLIENT', 'statsd.client')
+    @patch.object(settings, 'STATSD_CLIENT', 'statsd.client')
     def test_normal(self):
         self.assertEqual(get_client().__module__, 'statsd.client')
 
-    @mock.patch.object(settings, 'STATSD_CLIENT',
-                       'django_statsd.clients.null')
+    @patch.object(settings, 'STATSD_CLIENT', 'django_statsd.clients.null')
     def test_null(self):
         self.assertEqual(get_client().__module__, 'django_statsd.clients.null')
 
-    @mock.patch.object(settings, 'STATSD_CLIENT',
-                       'django_statsd.clients.toolbar')
+    @patch.object(settings, 'STATSD_CLIENT', 'django_statsd.clients.toolbar')
     def test_toolbar(self):
         self.assertEqual(get_client().__module__, 'django_statsd.clients.toolbar')
 
-    @mock.patch.object(settings, 'STATSD_CLIENT',
-                       'django_statsd.clients.toolbar')
-    def test_toolbar_send(self):
+    @patch.object(settings, 'STATSD_CLIENT', 'django_statsd.clients.toolbar')
+    def test_toolbar_incr(self):
         client = get_client()
         self.assertEqual(client.cache, {})
         client.incr('testing')
         self.assertEqual(client.cache, {'testing|count': [[1, 1]]})
 
+    @patch.object(settings, 'STATSD_CLIENT', 'django_statsd.clients.toolbar')
+    def test_toolbar_decr(self):
+        client = get_client()
+        self.assertEqual(client.cache, {})
+        client.decr('testing')
+        self.assertEqual(client.cache, {'testing|count': [[-1, 1]]})
+
+    @patch.object(settings, 'STATSD_CLIENT', 'django_statsd.clients.toolbar')
+    def test_toolbar_timing(self):
+        client = get_client()
+        self.assertEqual(client.timings, [])
+        client.timing('testing', 1)
+        self.assertEqual(client.timings[0][0], 'testing|timing')
+        self.assertEqual(client.timings[0][2], 1)
+
+    @patch.object(settings, 'STATSD_CLIENT', 'django_statsd.clients.toolbar')
+    def test_toolbar_gauge(self):
+        client = get_client()
+        self.assertEqual(client.cache, {})
+        client.gauge('testing', 1)
+        self.assertEqual(client.cache, {'testing|gauge': [[1, 1]]})
+        client.gauge('testing', 1, delta=True)
+        self.assertEqual(client.cache, {'testing|gauge': [[1, 1], [1, 1]]})
+
+    @patch.object(settings, 'STATSD_CLIENT', 'django_statsd.clients.toolbar')
+    def test_toolbar_set(self):
+        client = get_client()
+        self.assertEqual(client.cache, {})
+        client.set('testing', 1)
+        self.assertEqual(client.cache, {'testing|set': [[1, 1]]})
+
+    @patch.object(settings, 'STATSD_CLIENT', 'django_statsd.clients.log')
+    @log_capture()
+    def test_log_client(self, l):
+        client = get_client()
+        client.timing('testing.timing', 1)
+        client.incr('testing.incr')
+        client.decr('testing.decr')
+        client.gauge('testing.gauge', 1)
+        l.check(('statsd', 'INFO', 'Timing: testing.timing, 1, 1'),
+                ('statsd', 'INFO', 'Increment: testing.incr, 1, 1'),
+                ('statsd', 'INFO', 'Decrement: testing.decr, 1, 1'),
+                ('statsd', 'INFO', 'Gauge: testing.gauge, 1, 1'))
+
+
+@patch.object(statsd, 'incr')
+@patch.object(statsd, 'timing')
+class TestSignals(DjangoTestCase):
+
+    def setUp(self):
+        class Sender(object):
+            def __init__(self):
+                self.name = 'testing'
+
+            def __str__(self):
+                return self.name
+
+        self.sender = Sender()
+
+    def test_celery_signals(self, incr, timing):
+        celery_signals.before_task_publish.send(sender=self.sender)
+        celery_signals.after_task_publish.send(sender=self.sender)
+        celery_signals.task_prerun.send(sender=self.sender, task_id='1')
+        celery_signals.task_postrun.send(sender=self.sender, task_id='1')
+        celery_signals.task_postrun.send(sender=self.sender, task_id='2')
+        celery_signals.task_success.send(sender=self.sender)
+        celery_signals.task_failure.send(sender=self.sender)
+        celery_signals.task_retry.send(sender=self.sender)
+        celery_signals.task_revoked.send(sender=self.sender)
+        celery_signals.task_unknown.send(sender=self.sender)
+        celery_signals.task_rejected.send(sender=self.sender)
+        self.assertEqual(statsd.incr.call_count, 8)
+        self.assertEqual(statsd.timing.call_count, 1)
+
+    @FakeModel.fake_me
+    def test_model_signals(self, timing, incr):
+        m = FakeModel.objects.create(name='123')
+        m.name = '321'
+        m.save()
+        m.delete()
+        self.assertEqual(statsd.incr.call_count, 3)
+
+    def test_auth_signals(self, timing, incr):
+        req = RequestFactory().get('/')
+        user = Mock()
+        user.backend = 'fake_backend'
+
+        auth_signals.user_logged_in.send(self.sender, request=req, user=user)
+        auth_signals.user_logged_out.send(self.sender, request=req, user=user)
+        auth_signals.user_login_failed.send(self.sender, credentials={})
+
+        self.assertEqual(statsd.incr.call_count, 4)
+
 
 # This is primarily for Zamboni, which loads in the custom middleware
 # classes, one of which, breaks posts to our url. Let's stop that.
-@mock.patch.object(settings, 'MIDDLEWARE', [])
-@mock.patch.object(settings, 'MIDDLEWARE_CLASSES', [])
-class TestRecord(TestCase):
+@patch.object(settings, 'MIDDLEWARE', [])
+@patch.object(settings, 'MIDDLEWARE_CLASSES', [])
+class TestRecord(DjangoTestCase):
 
     urls = 'django_statsd.urls'
 
@@ -192,10 +353,25 @@ class TestRecord(TestCase):
     def test_boomerang_minimum(self):
         content = self.client.get(self.url,
                                   {'client': 'boomerang',
+                                   'nt_nav_type': 'undefined',
                                    'nt_nav_st': 1}).content.decode()
         assert(content == 'recorded')
 
-    @mock.patch('django_statsd.views.process_key')
+    def test_boomerang_undefined_value(self):
+        content = self.client.get(self.url,
+                                  {'client': 'boomerang',
+                                   'nt_nav_type': 'undefined',
+                                   'nt_nav_st': 1}).content.decode()
+        assert(content == 'recorded')
+
+    @patch.object(settings, 'STATSD_RECORD_KEYS', ['unknown.key', 'window.performance.timing.navigationStart'])
+    def test_boomerang_unknown_key(self):
+        content = self.client.get(self.url,
+                                  {'client': 'boomerang',
+                                   'nt_nav_st': 1}).content.decode()
+        assert(content == 'recorded')
+
+    @patch('django_statsd.views.process_key')
     def test_boomerang_something(self, process_key):
         content = self.client.get(self.url, self.good).content.decode()
         assert content == 'recorded'
@@ -208,14 +384,23 @@ class TestRecord(TestCase):
         settings.STATSD_RECORD_GUARD = lambda r: None
         assert self.client.get(self.url, self.good).status_code == 200
 
+    def test_good_guard_no_result(self):
+        settings.STATSD_RECORD_GUARD = lambda r: False
+        assert self.client.get(self.url, self.good).status_code == 200
+
     def test_bad_guard(self):
         settings.STATSD_RECORD_GUARD = lambda r: HttpResponseForbidden()
         assert self.client.get(self.url, self.good).status_code == 403
 
+    def test_bad_guard_not_callable(self):
+        settings.STATSD_RECORD_GUARD = [1]
+        with raises(ValueError, message='STATSD_RECORD_GUARD must be callable'):
+            self.client.get(self.url, self.good)
+
     def test_stick_get(self):
         assert self.client.get(self.url, self.stick).status_code == 405
 
-    @mock.patch('django_statsd.views.process_key')
+    @patch('django_statsd.views.process_key')
     def test_stick(self, process_key):
         assert self.client.post(self.url, self.stick).status_code == 200
         assert process_key.called
@@ -225,7 +410,7 @@ class TestRecord(TestCase):
         del data['window.performance.timing.navigationStart']
         assert self.client.post(self.url, data).status_code == 400
 
-    @mock.patch('django_statsd.views.process_key')
+    @patch('django_statsd.views.process_key')
     def test_stick_missing(self, process_key):
         data = self.stick.copy()
         del data['window.performance.timing.domInteractive']
@@ -248,8 +433,56 @@ class TestRecord(TestCase):
         assert self.client.post(self.url, data).status_code == 400
 
 
-@mock.patch.object(middleware.statsd, 'incr')
-class TestErrorLog(TestCase):
+@patch.object(statsd, 'timing')
+@patch.object(statsd, 'incr')
+class TestViewFunctions(DjangoTestCase):
+
+    def test_process_key_timing(self, incr, timing):
+        process_key(1, 'timing', '1')
+        process_key(1, 'timing', '2')
+        process_key(2, 'timing', '1')
+        values = [0, 1, 0]
+        for expected, (args, kwargs) in zip(values, statsd.timing.call_args_list):
+            self.assertEqual('timing', args[0])
+            self.assertEqual(expected, args[1])
+
+    def test_process_key_navigation_type(self, incr, timing):
+        process_key(1, 'window.performance.navigation.type', '0')
+        process_key(1, 'window.performance.navigation.type', '1')
+        process_key(1, 'window.performance.navigation.type', '2')
+        process_key(1, 'window.performance.navigation.type', '255')
+        names = ['window.performance.navigation.type.navigate',
+                 'window.performance.navigation.type.reload',
+                 'window.performance.navigation.type.back_forward',
+                 'window.performance.navigation.type.reserved', ]
+        for expected, (args, kwargs) in zip(names, statsd.incr.call_args_list):
+            self.assertEqual(expected, args[0])
+
+    def test_process_key_redirect_count(self, incr, timing):
+        process_key(1, 'window.performance.navigation.redirectCount', '1')
+        self.assertEqual(statsd.incr.call_args_list[0][0][0], 'window.performance.navigation.redirectCount')
+
+    def test_process_key_none(self, incr, timing):
+        process_key(1, 'random', '1')
+        assert not statsd.incr.called
+        assert not statsd.timing.called
+
+    def test_process_summaries(self, incr, timing):
+        timings = {'window.performance.timing.domComplete': 123,
+                   'window.performance.timing.domInteractive': 456,
+                   'window.performance.timing.domLoading': 789,
+                   'window.performance.timing.navigationStart': 0,
+                   'window.performance.timing.responseStart': 5,
+                   'window.performance.timing.loadEventEnd': 1000,
+                   'window.performance.navigation.redirectCount': 3,
+                   'window.performance.navigation.type': 1}
+        _process_summaries(0, timings)
+        assert statsd.timing.called
+        self.assertEqual(statsd.timing.call_count, 4)
+
+
+@patch.object(middleware.statsd, 'incr')
+class TestErrorLog(DjangoTestCase):
 
     def setUp(self):
         dictconfig.dictConfig(cfg)
@@ -270,7 +503,7 @@ class TestErrorLog(TestCase):
         assert not incr.called
 
 
-class TestPatchMethod(TestCase):
+class TestPatchMethod(DjangoTestCase):
 
     def setUp(self):
         super(TestPatchMethod, self).setUp()
@@ -342,19 +575,43 @@ class TestPatchMethod(TestCase):
         self.assertEqual(obj.badfn(1, 2, c=1, d=2), ((1, 2), {'c': 1, 'd': 2}))
 
 
-class TestCursorWrapperPatching(TestCase):
+class TestApplyPatching(DjangoTestCase):
+    @patch.object(settings, 'STATSD_PATCHES', ['django_statsd.patches.db', ])
+    def test_patching(self):
+        """ Test the patching itself """
+        import_patches()
+
+
+class TestCacheWrappingPatching(DjangoTestCase):
+    def test_patching(self):
+        """ Test the patching itself """
+        cache_patch()
+
+    def test_statsdtracker_basecache(self):
+        cache = StatsdTracker(django_cache)
+        cache.set('A', 1)
+        value = cache.get('A')
+        self.assertEqual(value, 1)
+        assert cache.default_timeout == 300
+
+
+class TestCursorWrapperPatching(DjangoTestCase):
     example_queries = {
         'select': 'select * from something;',
         'insert': 'insert (1, 2) into something;',
         'update': 'update something set a=1;',
     }
 
+    def test_patching(self):
+        """ Test the patching itself """
+        db_patch()
+
     def test_patched_callproc_calls_timer(self):
         for operation, query in list(self.example_queries.items()):
-            with mock.patch.object(statsd, 'timer') as timer:
-                client = mock.Mock(executable_name='client_executable_name')
-                db = mock.Mock(executable_name='name', alias='alias', client=client)
-                instance = mock.Mock(db=db)
+            with patch.object(statsd, 'timer') as timer:
+                client = Mock(executable_name='client_executable_name')
+                db = Mock(executable_name='name', alias='alias', client=client)
+                instance = Mock(db=db)
 
                 patched_callproc(lambda *args, **kwargs: None, instance, query)
 
@@ -363,10 +620,10 @@ class TestCursorWrapperPatching(TestCase):
 
     def test_patched_execute_calls_timer(self):
         for operation, query in list(self.example_queries.items()):
-            with mock.patch.object(statsd, 'timer') as timer:
-                client = mock.Mock(executable_name='client_executable_name')
-                db = mock.Mock(executable_name='name', alias='alias', client=client)
-                instance = mock.Mock(db=db)
+            with patch.object(statsd, 'timer') as timer:
+                client = Mock(executable_name='client_executable_name')
+                db = Mock(executable_name='name', alias='alias', client=client)
+                instance = Mock(db=db)
 
                 patched_execute(lambda *args, **kwargs: None, instance, query)
 
@@ -375,10 +632,10 @@ class TestCursorWrapperPatching(TestCase):
 
     def test_patched_executemany_calls_timer(self):
         for operation, query in list(self.example_queries.items()):
-            with mock.patch.object(statsd, 'timer') as timer:
-                client = mock.Mock(executable_name='client_executable_name')
-                db = mock.Mock(executable_name='name', alias='alias', client=client)
-                instance = mock.Mock(db=db)
+            with patch.object(statsd, 'timer') as timer:
+                client = Mock(executable_name='client_executable_name')
+                db = Mock(executable_name='name', alias='alias', client=client)
+                instance = Mock(db=db)
 
                 patched_executemany(lambda *args, **kwargs: None, instance, query)
 

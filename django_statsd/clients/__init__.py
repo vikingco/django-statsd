@@ -1,36 +1,14 @@
 from __future__ import absolute_import
-
-try:
-    from importlib import import_module
-except ImportError:
-    from django.utils.importlib import import_module
-
+from importlib import import_module
 from django.conf import settings
-
-_statsd = None
-
-
-def get(name, default):
-    try:
-        return getattr(settings, name, default)
-    except ImportError:
-        return default
 
 
 def get_client():
-    client = get('STATSD_CLIENT', 'statsd.client')
-    host = get('STATSD_HOST', 'localhost')
-# This is causing problems with statsd
-# gaierror ([Errno -9] Address family for hostname not supported)
-# TODO: figure out what to do here.
-#    import socket
-#    host = socket.gethostbyaddr(host)[2][0]
-    port = get('STATSD_PORT', 8125)
-    prefix = get('STATSD_PREFIX', None)
+    client = getattr(settings, 'STATSD_CLIENT', 'statsd.client')
+    host = getattr(settings, 'STATSD_HOST', 'localhost')
+    port = getattr(settings, 'STATSD_PORT', 8125)
+    prefix = getattr(settings, 'STATSD_PREFIX', None)
     return import_module(client).StatsClient(host=host, port=port, prefix=prefix)
 
 
-if not _statsd:
-    _statsd = get_client()
-
-statsd = _statsd
+statsd = get_client()
