@@ -3,7 +3,6 @@ import logging
 import sys
 
 from django_fake_model import models as f
-from logutils import dictconfig
 from mock import patch, Mock
 from pytest import raises
 from six.moves import zip
@@ -325,8 +324,6 @@ class TestSignals(DjangoTestCase):
 @patch.object(settings, 'MIDDLEWARE_CLASSES', [])
 class TestRecord(DjangoTestCase):
 
-    urls = 'django_statsd.urls'
-
     def setUp(self):
         super(TestRecord, self).setUp()
         self.url = reverse('django_statsd_record')
@@ -397,8 +394,8 @@ class TestRecord(DjangoTestCase):
         response = self.client.get(self.url, self.good)
         assert response.status_code == 403
 
+    @patch.object(settings, 'STATSD_RECORD_GUARD', [1])
     def test_bad_guard_not_callable(self):
-        settings.STATSD_RECORD_GUARD = [1]
         with raises(ValueError, message='STATSD_RECORD_GUARD must be callable'):
             self.client.get(self.url, self.good)
 
@@ -647,11 +644,11 @@ class TestCursorWrapperPatching(DjangoTestCase):
                 self.assertEqual(timer.call_count, 1)
                 self.assertEqual(timer.call_args[0][0], 'db.client_executable_name.alias.executemany.%s' % operation)
 
-    @mock.patch('django_statsd.patches.db.patched_callproc')
-    @mock.patch('django_statsd.patches.db.patched_executemany')
-    @mock.patch('django_statsd.patches.db.patched_execute')
-    @mock.patch('django.db.backends.utils.CursorWrapper')
-    def test_cursorwrapper_patching(self, CursorWrapper, execute, executemany, callproc):
+    @patch('django_statsd.patches.db.patched_callproc')
+    @patch('django_statsd.patches.db.patched_executemany')
+    @patch('django_statsd.patches.db.patched_execute')
+    @patch('django.db.backends.utils.CursorWrapper')
+    def test_cursorwrapper_patching(self, cursorwrapper, execute, executemany, callproc):
         from django_statsd.patches.db import patch
         execute.__name__ = 'execute'
         executemany.__name__ = 'executemany'
@@ -661,6 +658,6 @@ class TestCursorWrapperPatching(DjangoTestCase):
         callproc.return_value = 'callproc'
         patch()
 
-        self.assertEqual(CursorWrapper.execute(), 'execute')
-        self.assertEqual(CursorWrapper.executemany(), 'executemany')
-        self.assertEqual(CursorWrapper.callproc(), 'callproc')
+        self.assertEqual(cursorwrapper.execute(), 'execute')
+        self.assertEqual(cursorwrapper.executemany(), 'executemany')
+        self.assertEqual(cursorwrapper.callproc(), 'callproc')
