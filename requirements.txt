@@ -1,4 +1,3 @@
 mock
-nose
 pytest-django
 statsd==3.2.1
