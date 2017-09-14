@@ -236,6 +236,14 @@ Add to your Django settings::
 
         STATSD_MODEL_SIGNALS = True
 
+Django Authentication events integration
+----------------------------------------
+
+You can log the authentication events of the django authentication backends.
+Add to your Django settings::
+
+        STATSD_AUTH_SIGNALS = True
+
 Celery signals integration
 --------------------------
 
