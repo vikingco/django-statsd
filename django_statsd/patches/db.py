@@ -1,6 +1,6 @@
 try:
     from django.db.backends import utils as util
-except ImportError:
+except ImportError:  # pragma: no cover
     from django.db.backends import util
 
 from django_statsd.patches.utils import patch_method

@@ -1,5 +1,9 @@
 mock
+celery
 pytest-django
+testfixtures==4.14.3
+django-fake-model==0.1.4
+logutils==0.3.4.1
 pytest-cov
 coverage
 statsd==3.2.1

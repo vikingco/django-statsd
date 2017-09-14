@@ -15,7 +15,7 @@ except ImportError:  # pragma: no cover
         pass
 
 
-def is_authenticated(user):
+def is_authenticated(user):  # pragma: no cover
     if DJANGO_VERSION < (1, 10):
         return user.is_authenticated()
     return user.is_authenticated
@@ -43,12 +43,10 @@ class GraphiteRequestTimingMiddleware(MiddlewareMixin):
         view = view_func
         if not inspect.isfunction(view_func):
             view = view.__class__
-        try:
-            request._view_module = view.__module__
-            request._view_name = view.__name__
-            request._start_time = time.time()
-        except AttributeError:
-            pass
+
+        request._view_module = view.__module__
+        request._view_name = view.__name__
+        request._start_time = time.time()
 
     def process_response(self, request, response):
         self._record_time(request)

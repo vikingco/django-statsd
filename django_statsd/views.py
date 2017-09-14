@@ -92,10 +92,10 @@ def _process_boomerang(request):
 
     keys = {}
     for k in getattr(settings, 'STATSD_RECORD_KEYS', stick_keys):
-        v = request.GET.get(boomerang[k])
-        if not v or v == 'undefined':
-            continue
         if k in boomerang:
+            v = request.GET.get(boomerang[k])
+            if not v or v == 'undefined':
+                continue
             process_key(start, k, v)
             keys[k] = int(v)
 
@@ -119,13 +119,10 @@ def _process_stick(request):
             keys[k] = int(request.POST[k])
             process_key(start, k, request.POST[k])
 
-    # Only process the network when we have these.
-    for key in ['window.performance.timing.loadEventEnd',
-                'window.performance.timing.responseStart']:
-        if key not in keys:
-            return
-
-    _process_summaries(start, keys)
+    try:
+        _process_summaries(start, keys)
+    except KeyError:
+        pass
 
 
 clients = {
