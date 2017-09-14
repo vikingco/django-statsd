@@ -1,6 +1,8 @@
 import logging
 import os
 
+from django_statsd.clients import statsd
+
 NOSE = False
 try:
     from nose.plugins.base import Plugin
@@ -9,7 +11,6 @@ except ImportError:
     class Plugin:
         pass
 
-from django_statsd.clients import statsd
 
 log = logging.getLogger(__name__)
 

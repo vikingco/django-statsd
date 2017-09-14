@@ -39,6 +39,9 @@ matrix:
 install:
     - pip install tox tox-travis
 
+before_script:
+    - tox -e check
+
 script:
     - tox
 

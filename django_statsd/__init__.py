@@ -1,4 +1,4 @@
-from django_statsd import patches
-from django_statsd import clients
+from django_statsd import patches  # noqa: F401
+from django_statsd import clients  # noqa: F401
 
-from django_statsd.plugins import NoseStatsd
+from django_statsd.plugins import NoseStatsd  # noqa: F401
