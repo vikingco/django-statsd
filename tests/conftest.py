@@ -24,7 +24,6 @@ def pytest_configure():
         ),
         STATSD_CLIENT='django_statsd.clients.null',
         STATSD_PREFIX=None,
-        METLOG=None,
     )
 
     try:
