@@ -10,7 +10,7 @@ from django_statsd.clients import statsd
 
 try:
     from django.utils.deprecation import MiddlewareMixin
-except ImportError:
+except ImportError:  # pragma: no cover
     class MiddlewareMixin(object):
         pass
 
