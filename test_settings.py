@@ -5,6 +5,7 @@ DATABASES = {
     }
 }
 MIDDLEWARE = []
+MIDDLEWARE_CLASSES = []
 INSTALLED_APPS = ['django_statsd', ]
 
 ROOT_URLCONF = 'django_statsd.urls'
