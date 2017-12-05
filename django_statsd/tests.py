@@ -501,7 +501,7 @@ class TestErrorLog(DjangoTestCase):
     def division_error(self):
         try:
             1 / 0
-        except:
+        except Exception:
             return sys.exc_info()
 
     def test_emit(self, incr):
