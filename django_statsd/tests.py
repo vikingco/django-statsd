@@ -11,6 +11,7 @@ from testfixtures import log_capture
 from unittest import TestCase
 
 from celery import signals as celery_signals
+from django import VERSION as DJANGO_VERSION
 from django.conf import settings
 from django.contrib.auth import signals as auth_signals
 from django.core.cache import cache as django_cache
@@ -78,7 +79,10 @@ class TestIncr(DjangoTestCase):
 
     def test_graphite_response_authenticated(self, incr):
         self.req.user = Mock()
-        self.req.user.is_authenticated.return_value = True
+        if DJANGO_VERSION < (1, 10):
+            self.req.user.is_authenticated.return_value = True
+        else:
+            self.req.user.is_authenticated = True
         gmw = middleware.GraphiteMiddleware()
         gmw.process_response(self.req, self.res)
         self.assertEqual(incr.call_count, 2)
@@ -90,7 +94,10 @@ class TestIncr(DjangoTestCase):
 
     def test_graphite_exception_authenticated(self, incr):
         self.req.user = Mock()
-        self.req.user.is_authenticated.return_value = True
+        if DJANGO_VERSION < (1, 10):
+            self.req.user.is_authenticated.return_value = True
+        else:
+            self.req.user.is_authenticated = True
         gmw = middleware.GraphiteMiddleware()
         gmw.process_exception(self.req, None)
         self.assertEqual(incr.call_count, 2)
@@ -102,7 +109,10 @@ class TestIncr(DjangoTestCase):
 
     def test_graphite_exception_404_authenticated(self, incr):
         self.req.user = Mock()
-        self.req.user.is_authenticated.return_value = True
+        if DJANGO_VERSION < (1, 10):
+            self.req.user.is_authenticated.return_value = True
+        else:
+            self.req.user.is_authenticated = True
         gmw = middleware.GraphiteMiddleware()
         gmw.process_exception(self.req, Http404())
         self.assertEqual(incr.call_count, 0)
