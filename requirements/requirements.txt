@@ -2,4 +2,4 @@
 django>=1.8,<2.2
 
 # StatsD
-statsd==3.2.1
+statsd<3.3
