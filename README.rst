@@ -7,7 +7,7 @@ Django Statsd
 .. image:: https://travis-ci.org/vikingco/django-statsd.svg?branch=master
     :target: https://travis-ci.org/vikingco/django-statsd
 
-This is a friendly fork with support for Django>1.8,<2.1.
+This is a friendly fork with support for Django>1.8,<2.2.
 
 The original documentation is on `Read the Docs <https://django-statsd.readthedocs.org/>`_.
 
