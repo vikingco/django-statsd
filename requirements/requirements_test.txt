@@ -1,5 +1,5 @@
 # For testing
-celery==4.0.2
+celery>=4.0,<4.3
 logutils==0.3.4.1
 mock==2.0.0
 testfixtures==4.14.3
