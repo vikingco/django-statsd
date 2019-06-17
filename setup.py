@@ -28,7 +28,7 @@ for req in requirements_test_file:
 # Became django-statsd-unleashed because django-statsd and django-statsd-mozilla are taken on Pypi. ;)
 setup(
     name='django-statsd-unleashed',
-    version='1.0.5',
+    version='1.0.6',
     url='https://github.com/vikingco/django-statsd',
     license='BSD',
     description='Django interface with statsd',
