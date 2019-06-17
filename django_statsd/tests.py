@@ -62,7 +62,7 @@ cfg = {
 
 
 class FakeModel(f.FakeModel):
-        name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100)
 
 
 @patch.object(middleware.statsd, 'incr')
