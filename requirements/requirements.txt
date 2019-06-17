@@ -1,5 +1,5 @@
 # Django
-django>=1.8,<2.2
+django>=1.8
 
 # StatsD
 statsd<3.3

@@ -14,6 +14,8 @@ rm -rf venv
 virtualenv3 venv
 ./venv/bin/pip install -e .
 ./venv/bin/pip install -r requirements/requirements_test.txt
+./venv/bin/pip install 'Django>=2.2,<2.3'
+DJANGO_SETTINGS_MODULE='test_settings' venv/bin/pytest django_statsd
 ./venv/bin/pip install 'Django>=2.1,<2.2'
 DJANGO_SETTINGS_MODULE='test_settings' venv/bin/pytest django_statsd
 ./venv/bin/pip install 'Django>=2.0,<2.1'
