@@ -26,4 +26,4 @@ exclude_lines=
     def __iter__
     def __str__
     def __unicode__
-fail_under = 80
+fail_under = 79
