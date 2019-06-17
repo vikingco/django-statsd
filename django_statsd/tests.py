@@ -2,7 +2,6 @@ from __future__ import absolute_import
 import logging
 import sys
 
-from django_fake_model import models as f
 from logutils import dictconfig
 from mock import patch, Mock
 from pytest import raises
@@ -16,7 +15,6 @@ from django.conf import settings
 from django.contrib.auth import signals as auth_signals
 from django.core.cache import cache as django_cache
 from django.core.management import call_command
-from django.db import models
 from django.http import HttpResponse, HttpResponseForbidden, Http404
 from django.test import TestCase as DjangoTestCase
 from django.test.client import RequestFactory
@@ -59,10 +57,6 @@ cfg = {
         },
     },
 }
-
-
-class FakeModel(f.FakeModel):
-    name = models.CharField(max_length=100)
 
 
 @patch.object(middleware.statsd, 'incr')
@@ -307,14 +301,6 @@ class TestSignals(DjangoTestCase):
         celery_signals.task_rejected.send(sender=self.sender)
         self.assertEqual(statsd.incr.call_count, 8)
         self.assertEqual(statsd.timing.call_count, 1)
-
-    @FakeModel.fake_me
-    def test_model_signals(self, timing, incr):
-        m = FakeModel.objects.create(name='123')
-        m.name = '321'
-        m.save()
-        m.delete()
-        self.assertEqual(statsd.incr.call_count, 3)
 
     def test_auth_signals(self, timing, incr):
         req = RequestFactory().get('/')
