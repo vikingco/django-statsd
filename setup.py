@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 from pip._internal.req.req_file import parse_requirements
-from pip._internal.download import PipSession
+from pip._internal.network.session import PipSession
 
 from os import path
 
@@ -13,16 +13,12 @@ dependency_links = []
 # Inject requirements from requirements.txt into setup.py
 requirements_file = parse_requirements(path.join('requirements', 'requirements.txt'), session=PipSession())
 for req in requirements_file:
-    install_requires.append(str(req.req))
-    if req.link:
-        dependency_links.append(str(req.link))
+    install_requires.append(str(req.requirement))
 
 # Inject test requirements from requirements_test.txt into setup.py
 requirements_test_file = parse_requirements(path.join('requirements', 'requirements_test.txt'), session=PipSession())
 for req in requirements_test_file:
-    tests_require.append(str(req.req))
-    if req.link:
-        dependency_links.append(str(req.link))
+    tests_require.append(str(req.requirement))
 
 
 # Became django-statsd-unleashed because django-statsd and django-statsd-mozilla are taken on Pypi. ;)
