@@ -17,7 +17,7 @@ class StatsdClientProxy:
             return super().__getattribute__(name)
 
         refresh_cutoff = datetime.now() - timedelta(seconds=getattr(settings, 'STATSD_REFRESH_SECONDS', 120))
-        if self._client is None or self._client.created_at < refresh_cutoff:
+        if self._client is None or not hasattr(self._client, 'created_at') or self._client.created_at < refresh_cutoff:
             client = getattr(settings, 'STATSD_CLIENT', 'statsd.client')
             host = getattr(settings, 'STATSD_HOST', 'localhost')
             port = getattr(settings, 'STATSD_PORT', 8125)
