@@ -1,0 +1,55 @@
+[tool.ruff]
+exclude = ['migrations', 'manage.py', '.venv']
+line-length = 120
+target-version = 'py312'
+
+[tool.ruff.format]
+quote-style = 'single'
+
+[tool.ruff.lint]
+select = [
+    'E',   # pycodestyle: code style violations
+    'W',   # pycodestyle warnings
+    'I',   # isort: ordering and formatting imports
+    'F',   # pyflakes: code style violations
+    'C901',# mccabe complexity check
+    'SIM', # flake8-simplify: ways to simplify code
+    'UP',  # pyupgrade: ways to replace deprecated code
+    'TID252',  # require absolute imports or sibling imports
+]
+
+[tool.poetry]
+name = "django-statsd-unleashed"
+version = "1.2.0"
+description = "Django interface with statsd"
+authors = ["Andy McKay <andym@mozilla.com>"]
+maintainers = ["Unleashed NV <operations@unleashed.be>"]
+license = "BSD"
+readme = "README.rst"
+repository = "https://github.com/vikingco/django-statsd"
+packages = [{ include = "django_statsd" }]
+
+[tool.poetry.dependencies]
+python = "^3.12" 
+
+django = "^4.2"
+statsd = "<3.3"
+
+[tool.poetry.group.dev.dependencies]
+celery = "~5"
+logutils = "*"
+mock = "*"
+testfixtures = "*"
+
+pytest = "*"
+pytest-django = "*"
+
+pytest-cov = "*"
+coverage = "*"
+coveralls = "*"
+
+ruff = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

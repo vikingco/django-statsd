@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 import logging
 
 from django_statsd.clients import statsd
@@ -11,4 +10,4 @@ class StatsdHandler(logging.Handler):
         if not record.exc_info:
             return
 
-        statsd.incr('error.%s' % record.exc_info[0].__name__.lower())
+        statsd.incr(f'error.{record.exc_info[0].__name__.lower()}')

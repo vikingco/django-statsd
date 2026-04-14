@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 from django.core import cache
 from django.core.cache.backends.base import BaseCache
 
@@ -6,11 +5,10 @@ from django_statsd.patches.utils import wrap
 
 
 def key(cache, attr):
-    return 'cache.%s.%s' % (cache.__module__.split('.')[-1], attr)
+    return 'cache.{}.{}'.format(cache.__module__.split('.')[-1], attr)
 
 
 class StatsdTracker(BaseCache):
-
     def __init__(self, cache):
         self.cache = cache
 

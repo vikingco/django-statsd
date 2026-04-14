@@ -1,12 +1,11 @@
-from __future__ import absolute_import
 from django.db.backends import utils
 
-from django_statsd.patches.utils import patch_method
 from django_statsd.clients import statsd
+from django_statsd.patches.utils import patch_method
 
 
 def key(db, attr):
-    return 'db.%s.%s.%s' % (db.client.executable_name, db.alias, attr)
+    return f'db.{db.client.executable_name}.{db.alias}.{attr}'
 
 
 def _get_query_type(query):
@@ -14,17 +13,17 @@ def _get_query_type(query):
 
 
 def patched_execute(orig_execute, self, query, *args, **kwargs):
-    with statsd.timer(key(self.db, 'execute.%s' % _get_query_type(query))):
+    with statsd.timer(key(self.db, f'execute.{_get_query_type(query)}')):
         return orig_execute(self, query, *args, **kwargs)
 
 
 def patched_executemany(orig_executemany, self, query, *args, **kwargs):
-    with statsd.timer(key(self.db, 'executemany.%s' % _get_query_type(query))):
+    with statsd.timer(key(self.db, f'executemany.{_get_query_type(query)}')):
         return orig_executemany(self, query, *args, **kwargs)
 
 
 def patched_callproc(orig_callproc, self, query, *args, **kwargs):
-    with statsd.timer(key(self.db, 'callproc.%s' % _get_query_type(query))):
+    with statsd.timer(key(self.db, f'callproc.{_get_query_type(query)}')):
         return orig_callproc(self, query, *args, **kwargs)
 
 

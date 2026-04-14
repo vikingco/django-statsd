@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 from collections import defaultdict
 from time import time
 
@@ -9,7 +8,7 @@ class StatsClient(StatsClient):
     """A client that pushes things into a local cache."""
 
     def __init__(self, *args, **kw):
-        super(StatsClient, self).__init__(*args, **kw)
+        super().__init__(*args, **kw)
         self.reset()
 
     def reset(self):
@@ -18,28 +17,28 @@ class StatsClient(StatsClient):
 
     def timing(self, stat, delta, rate=1):
         """Send new timing information. `delta` is in milliseconds."""
-        stat = '%s|timing' % stat
+        stat = f'{stat}|timing'
         now = time() * 1000
         self.timings.append([stat, now - delta, delta, now])
 
     def incr(self, stat, count=1, rate=1):
         """Increment a stat by `count`."""
-        stat = '%s|count' % stat
+        stat = f'{stat}|count'
         self.cache[stat].append([count, rate])
 
     def decr(self, stat, count=1, rate=1):
         """Decrement a stat by `count`."""
-        stat = '%s|count' % stat
+        stat = f'{stat}|count'
         self.cache[stat].append([-count, rate])
 
     def gauge(self, stat, value, rate=1, delta=False):
         """Set a gauge value."""
-        stat = '%s|gauge' % stat
+        stat = f'{stat}|gauge'
         if delta:
             self.cache[stat].append([value, rate])
         else:
             self.cache[stat] = [[value, rate]]
 
     def set(self, stat, value, rate=1):
-        stat = '%s|set' % stat
+        stat = f'{stat}|set'
         self.cache[stat].append([value, rate])

@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 import time
 
 from django.core.management.base import BaseCommand
@@ -16,8 +15,7 @@ class Command(BaseCommand):
     """
 
     def add_arguments(self, parser):
-        parser.add_argument('--key', action='store', type=str,
-                            dest='key', help='Key to ping')
+        parser.add_argument('--key', action='store', type=str, dest='key', help='Key to ping')
 
     def handle(self, *args, **kw):
         statsd.timing(kw.get('key'), time.time())

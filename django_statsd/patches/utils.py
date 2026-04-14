@@ -1,6 +1,6 @@
-from __future__ import absolute_import
-from django_statsd.clients import statsd
 from functools import partial, wraps
+
+from django_statsd.clients import statsd
 
 
 def patch_method(target, name, external_decorator=None):
