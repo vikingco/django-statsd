@@ -1,12 +1,12 @@
-from __future__ import absolute_import
-import collections
+import contextlib
+from collections.abc import Callable
+
 from django import http
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from django_statsd.clients import statsd
-
 
 boomerang = {
     'window.performance.navigation.redirectCount': 'nt_red_cnt',
@@ -29,14 +29,14 @@ boomerang = {
     'window.performance.timing.responseEnd': 'nt_res_end',
     'window.performance.timing.responseStart': 'nt_res_st',
     'window.performance.timing.unloadEventEnd': 'nt_unload_end',
-    'window.performance.timing.unloadEventStart': 'nt_unload_st'
+    'window.performance.timing.unloadEventStart': 'nt_unload_st',
 }
 
 types = {
     '0': 'navigate',
     '1': 'reload',
     '2': 'back_forward',
-    '255': 'reserved'
+    '255': 'reserved',
 }
 
 # These are the default keys that we will try and record.
@@ -58,7 +58,7 @@ def process_key(start, key, value):
         value = max(start, int(value)) - start
         statsd.timing(key, value)
     elif key == 'window.performance.navigation.type':
-        statsd.incr('%s.%s' % (key, types[value]))
+        statsd.incr(f'{key}.{types[value]}')
     elif key == 'window.performance.navigation.redirectCount':
         statsd.incr(key, int(value))
 
@@ -66,17 +66,14 @@ def process_key(start, key, value):
 def _process_summaries(start, keys):
     calculated = {
         'network': keys['window.performance.timing.responseStart'] - start,
-        'app': (keys['window.performance.timing.domLoading'] -
-                keys['window.performance.timing.responseStart']),
-        'dom': (keys['window.performance.timing.domComplete'] -
-                keys['window.performance.timing.domLoading']),
-        'rendering': (keys['window.performance.timing.loadEventEnd'] -
-                      keys['window.performance.timing.domComplete']),
+        'app': (keys['window.performance.timing.domLoading'] - keys['window.performance.timing.responseStart']),
+        'dom': (keys['window.performance.timing.domComplete'] - keys['window.performance.timing.domLoading']),
+        'rendering': (keys['window.performance.timing.loadEventEnd'] - keys['window.performance.timing.domComplete']),
     }
     for k, v in list(calculated.items()):
         # If loadEventEnd still does not get populated, we could end up with
         # negative numbers here.
-        statsd.timing('window.performance.calculated.%s' % k, max(v, 0))
+        statsd.timing(f'window.performance.calculated.{k}', max(v, 0))
 
 
 @require_http_methods(['GET', 'HEAD'])
@@ -85,7 +82,8 @@ def _process_boomerang(request):
         raise ValueError(
             'nt_nav_st not in request.GET, make sure boomerang'
             ' is made with navigation API timings as per the following'
-            ' http://yahoo.github.com/boomerang/doc/howtos/howto-9.html')
+            ' http://yahoo.github.com/boomerang/doc/howtos/howto-9.html'
+        )
 
     # This when the request started, everything else will be relative to this
     # for the purposes of statsd measurement.
@@ -100,10 +98,8 @@ def _process_boomerang(request):
             process_key(start, k, v)
             keys[k] = int(v)
 
-    try:
+    with contextlib.suppress(KeyError):
         _process_summaries(start, keys)
-    except KeyError:
-        pass
 
 
 @require_http_methods(['POST'])
@@ -120,10 +116,8 @@ def _process_stick(request):
             keys[k] = int(request.POST[k])
             process_key(start, k, request.POST[k])
 
-    try:
+    with contextlib.suppress(KeyError):
         _process_summaries(start, keys)
-    except KeyError:
-        pass
 
 
 clients = {
@@ -150,7 +144,7 @@ def record(request):
 
     guard = getattr(settings, 'STATSD_RECORD_GUARD', None)
     if guard:
-        if not isinstance(guard, collections.Callable):
+        if not isinstance(guard, Callable):
             raise ValueError('STATSD_RECORD_GUARD must be callable')
         result = guard(request)
         if result:

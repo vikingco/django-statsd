@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 from datetime import datetime, timedelta
 from importlib import import_module
 
@@ -10,6 +9,7 @@ class StatsdClientProxy:
     A proxy class for the actual StatsdClient. This will instantiate a new client every 2 minutes, so that if the statsd
     host changes IP, we'll do a DNS lookup to discover it instead of sending the UDP packets into the void.
     """
+
     _client = None
 
     def __getattribute__(self, name):

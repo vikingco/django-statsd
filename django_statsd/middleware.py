@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 import inspect
 import time
 
@@ -9,6 +8,7 @@ from django.http import Http404
 from django.http.multipartparser import MultiPartParserError
 
 from django_statsd.clients import statsd
+
 try:
     from django.utils.deprecation import MiddlewareMixin
 except ImportError:  # pragma: no cover
@@ -22,11 +22,10 @@ def is_authenticated(user):  # pragma: no cover
 
 
 class GraphiteMiddleware(MiddlewareMixin):
-
     def process_response(self, request, response):
-        statsd.incr('response.%s' % response.status_code)
+        statsd.incr(f'response.{response.status_code}')
         if hasattr(request, 'user') and request.user and is_authenticated(request.user):
-            statsd.incr('response.auth.%s' % response.status_code)
+            statsd.incr(f'response.auth.{response.status_code}')
         return response
 
     def process_exception(self, request, exception):
@@ -35,11 +34,7 @@ class GraphiteMiddleware(MiddlewareMixin):
         # See: https://github.com/django/django/blob/f0b75f46fd0ee98c10887b3c5dc4593d2bccf821/django/core/handlers/exception.py#L64
         if not isinstance(
             exception,
-            Http404
-            | PermissionDenied
-            | MultiPartParserError
-            | BadRequest
-            | SuspiciousOperation,
+            Http404 | PermissionDenied | MultiPartParserError | BadRequest | SuspiciousOperation,
         ):
             statsd.incr('response.500')
             if hasattr(request, 'user') and request.user and is_authenticated(request.user):
@@ -68,8 +63,7 @@ class GraphiteRequestTimingMiddleware(MiddlewareMixin):
     def _record_time(self, request):
         if hasattr(request, '_start_time'):
             ms = int((time.time() - request._start_time) * 1000)
-            data = dict(module=request._view_module, name=request._view_name,
-                        method=request.method)
+            data = dict(module=request._view_module, name=request._view_name, method=request.method)
             statsd.timing('view.{module}.{name}.{method}'.format(**data), ms)
             if getattr(settings, 'STATSD_VIEW_TIMER_DETAILS', True):
                 statsd.timing('view.{module}.{method}'.format(**data), ms)
@@ -85,5 +79,4 @@ class TastyPieRequestTimingMiddleware(GraphiteRequestTimingMiddleware):
             request._view_name = view_kwargs['resource_name']
             request._start_time = time.time()
         except (AttributeError, KeyError):
-            super(TastyPieRequestTimingMiddleware, self).process_view(
-                request, view_func, view_args, view_kwargs)
+            super().process_view(request, view_func, view_args, view_kwargs)
