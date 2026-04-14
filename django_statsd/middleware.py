@@ -4,7 +4,9 @@ import time
 
 from django import VERSION as DJANGO_VERSION
 from django.conf import settings
+from django.core.exceptions import BadRequest, PermissionDenied, SuspiciousOperation
 from django.http import Http404
+from django.http.multipartparser import MultiPartParserError
 
 from django_statsd.clients import statsd
 try:
@@ -28,7 +30,17 @@ class GraphiteMiddleware(MiddlewareMixin):
         return response
 
     def process_exception(self, request, exception):
-        if not isinstance(exception, Http404):
+        # Most exceptions that get here, are mapped to a 500 error. There are some exceptions (hehe) to that, they are
+        # listed here.
+        # See: https://github.com/django/django/blob/f0b75f46fd0ee98c10887b3c5dc4593d2bccf821/django/core/handlers/exception.py#L64
+        if not isinstance(
+            exception,
+            Http404
+            | PermissionDenied
+            | MultiPartParserError
+            | BadRequest
+            | SuspiciousOperation,
+        ):
             statsd.incr('response.500')
             if hasattr(request, 'user') and request.user and is_authenticated(request.user):
                 statsd.incr('response.auth.500')
