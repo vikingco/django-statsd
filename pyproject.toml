@@ -32,7 +32,7 @@ packages = [{ include = "django_statsd" }]
 [tool.poetry.dependencies]
 python = "^3.12" 
 
-django = "^4.2"
+django = ">=4"
 statsd = "<3.3"
 
 [tool.poetry.group.dev.dependencies]
